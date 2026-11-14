@@ -154,4 +154,76 @@ final class MemberTests: XCTestCase {
             })
         }
     }
+    
+    func testDeleteMemberReturnsNoContent() async throws {
+        try await withApp { app in
+            let member = try await createMember(app)
+            let id = try XCTUnwrap(member.id)
+
+            try await app.test(.DELETE, "members/\(id)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .noContent)
+            })
+
+            try await app.test(.GET, "members/\(id)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            })
+        }
+    }
+
+    func testDeleteUnknownMemberReturnsNotFound() async throws {
+        try await withApp { app in
+            try await app.test(.DELETE, "members/\(UUID())", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .notFound)
+            })
+        }
+    }
+
+    func testDeleteMemberWithActiveLoanReturnsConflict() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+            let memberID = try XCTUnwrap(member.id)
+            let now = Date()
+            try await insertLoan(
+                app,
+                gameID: try XCTUnwrap(game.id),
+                memberID: memberID,
+                borrowedAt: now,
+                dueAt: try Loan.dueDate(from: now)
+            )
+
+            try await app.test(.DELETE, "members/\(memberID)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .conflict)
+            })
+
+            try await app.test(.GET, "members/\(memberID)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+            })
+        }
+    }
+
+    func testDeleteMemberWithReturnedLoanReturnsConflict() async throws {
+        try await withApp { app in
+            let game = try await createGame(app)
+            let member = try await createMember(app)
+            let memberID = try XCTUnwrap(member.id)
+            let now = Date()
+            try await insertLoan(
+                app,
+                gameID: try XCTUnwrap(game.id),
+                memberID: memberID,
+                borrowedAt: now,
+                dueAt: try Loan.dueDate(from: now),
+                returnedAt: now
+            )
+
+            try await app.test(.DELETE, "members/\(memberID)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .conflict)
+            })
+
+            try await app.test(.GET, "members/\(memberID)", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+            })
+        }
+    }
 }

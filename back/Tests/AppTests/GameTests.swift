@@ -212,6 +212,14 @@ final class GameTests: XCTestCase {
         }
     }
     
+    func testDeleteGameWithMalformedIDReturnsBadRequest() async throws {
+        try await withApp { app in
+            try await app.test(.DELETE, "games/not-a-uuid", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            })
+        }
+    }
+    
     func testDeleteGameWithActiveLoanReturnsConflict() async throws {
         try await withApp { app in
             let game = try await createGame(app)

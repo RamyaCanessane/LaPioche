@@ -9,6 +9,7 @@ struct MemberController: RouteCollection {
         members.get(":memberID", use: show)
         members.put(":memberID", use: update)
         members.delete(":memberID", use: delete)
+        members.get(":memberID", "loans", use: getMemberLoans)
     }
     
     @Sendable
@@ -77,6 +78,18 @@ struct MemberController: RouteCollection {
         
         try await member.delete(on: req.db)
         return .noContent
+    }
+    
+    @Sendable
+    func getMemberLoans(req: Request) async throws -> [LoanDTO] {
+        let member = try await findMember(req)
+        let memberID = try member.requireID()
+        
+        let loans = try await Loan.query(on: req.db)
+            .filter(\.$member.$id == memberID)
+            .all()
+        
+        return loans.map { $0.toDTO() }
     }
     
     private func findMember(_ req: Request) async throws -> Member {

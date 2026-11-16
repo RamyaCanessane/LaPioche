@@ -72,7 +72,7 @@ struct MemberController: RouteCollection {
             .first()
         
         guard existingLoan == nil else {
-            throw Abort(.conflict, reason: "The member has loan history and cannot be deleted")
+            throw Abort(.conflict, reason: "A member with loans cannot be deleted")
         }
         
         try await member.delete(on: req.db)

@@ -143,6 +143,62 @@ final class GameTests: XCTestCase {
         }
     }
     
+    func testGamesFilteringByAvailabilityTrue() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Jeu Disponible")
+            let game2 = try await createGame(app, title: "Jeu Emprunté")
+            let member = try await createMember(app)
+            let now = Date()
+            
+            try await insertLoan(
+                app,
+                gameID: try XCTUnwrap(game2.id),
+                memberID: try XCTUnwrap(member.id),
+                borrowedAt: now,
+                dueAt: try Loan.dueDate(from: now)
+            )
+            
+            try await app.test(.GET, "games?available=true", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+                let games = try res.content.decode([GameDTO].self)
+                XCTAssertEqual(games.count, 1)
+                XCTAssertEqual(games.first?.title, "Jeu Disponible")
+            })
+        }
+    }
+    
+    func testGamesFilteringByAvailabilityFalse() async throws {
+        try await withApp { app in
+            _ = try await createGame(app, title: "Jeu Disponible")
+            let game2 = try await createGame(app, title: "Jeu Emprunté")
+            let member = try await createMember(app)
+            let now = Date()
+            
+            try await insertLoan(
+                app,
+                gameID: try XCTUnwrap(game2.id),
+                memberID: try XCTUnwrap(member.id),
+                borrowedAt: now,
+                dueAt: try Loan.dueDate(from: now)
+            )
+            
+            try await app.test(.GET, "games?available=false", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .ok)
+                let games = try res.content.decode([GameDTO].self)
+                XCTAssertEqual(games.count, 1)
+                XCTAssertEqual(games.first?.title, "Jeu Emprunté")
+            })
+        }
+    }
+    
+    func testGamesFilteringByAvailabilityInvalid() async throws {
+        try await withApp { app in
+            try await app.test(.GET, "games?available=invalid", afterResponse: { res async throws in
+                XCTAssertEqual(res.status, .badRequest)
+            })
+        }
+    }
+    
     func testShowGame() async throws {
         try await withApp { app in
             let game = try await createGame(app)
@@ -328,7 +384,6 @@ final class GameTests: XCTestCase {
                 XCTAssertEqual(res.status, .conflict)
             })
             
-            // A refused deletion leaves the game in place.
             try await app.test(.GET, "games/\(gameID)", afterResponse: { res async throws in
                 XCTAssertEqual(res.status, .ok)
             })

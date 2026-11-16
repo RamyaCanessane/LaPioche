@@ -16,7 +16,7 @@ struct GameController: RouteCollection {
         try GameSearchQuery.validate(query: req)
         let search = try req.query.decode(GameSearchQuery.self)
         
-        let query = Game.query(on: req.db).with(\.$loans)
+        var query = Game.query(on: req.db).with(\.$loans)
         
         if let q = search.q {
             query.filter(\.$title, .custom("LIKE"), "%\(q)%")
@@ -27,6 +27,19 @@ struct GameController: RouteCollection {
         }
         if let maxDuration = search.maxDuration {
             query.filter(\.$durationMinutes <= maxDuration)
+        }
+        
+        if let available = search.available {
+            let borrowedGameIDs = try await Loan.query(on: req.db)
+                .filter(\.$returnedAt == nil)
+                .all()
+                .compactMap { $0.$game.id }
+            
+            if available {
+                query = query.filter(\.$id !~ borrowedGameIDs) // !~ correspond au NOT IN en SQL
+            } else {
+                query = query.filter(\.$id ~~ borrowedGameIDs) // ~~ correspond au IN en SQL
+            }
         }
         
         let games = try await query.all()

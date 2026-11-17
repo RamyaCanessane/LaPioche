@@ -90,6 +90,25 @@ test("updateGame sends a JSON PUT to the game", async () => {
   assertEqual(updated.id, "g1");
 });
 
+test("updateMember sends a JSON PUT to the member", async () => {
+  const { fetch, calls } = fakeApi({
+    "PUT /members/m1": [200, { id: "m1" }],
+  });
+
+  const member = {
+    name: "Alice",
+    email: "alice@example.com",
+  };
+
+  const updated = await withFakeFetch(fetch, () =>
+    api.updateMember("m1", member),
+  );
+
+  assertEqual(`${calls[0].method} ${calls[0].path}`, "PUT /members/m1");
+  assertEqual(calls[0].body, member);
+  assertEqual(updated.id, "m1");
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

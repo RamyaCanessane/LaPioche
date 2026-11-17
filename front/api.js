@@ -124,6 +124,7 @@ export const api = {
 
   listMembers: () => request("GET", "/members"),
   createMember: (member) => request("POST", "/members", member),
+  updateMember: (id, member) => request("PUT", `/members/${id}`, member),
 
   borrow: (gameID, memberID) => request("POST", "/loans", { gameID, memberID }),
 };

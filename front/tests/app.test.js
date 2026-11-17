@@ -342,6 +342,115 @@ test("adding a member posts the form", async () => {
   });
 });
 
+test("editing a member opens a filled form and updates the list", async () => {
+  let members = [camille];
+
+  const updatedMember = {
+    ...camille,
+    name: "Camille Dupont",
+    email: "camille.dupont@example.com",
+  };
+
+  const app = await mountApp(
+    {
+      "GET /members": () => [200, members],
+      "PUT /members/m1": ({ body }) => {
+        members = [{ ...camille, ...body }];
+        return [200, members[0]];
+      },
+    },
+    { hash: "#members" },
+  );
+
+  await waitFor(() => app.$$("#members-list .row").length === 1);
+
+  // On ouvre le formulaire de modification.
+  app.click("Modifier", app.$("#members-list"));
+
+  const form = app.$("#member-form");
+
+  // On vérifie que les champs sont préremplis.
+  assertEqual(form.elements.name.value, "Camille");
+  assertEqual(form.elements.email.value, "camille@example.com");
+
+  // On modifie les informations.
+  form.elements.name.value = "Camille Dupont";
+  form.elements.email.value = "camille.dupont@example.com";
+
+  form.requestSubmit();
+
+  // On attend l'appel PUT.
+  await waitFor(
+    () =>
+      app.calls.some(
+        (call) => call.method === "PUT" && call.path === "/members/m1",
+      ),
+    "l'appel PUT /members/m1",
+  );
+
+  // On vérifie les données envoyées.
+  assertEqual(app.calls.find((call) => call.method === "PUT").body, {
+    name: "Camille Dupont",
+    email: "camille.dupont@example.com",
+  });
+
+  // On vérifie que la liste affiche les nouvelles informations.
+  await waitFor(
+    () =>
+      app.$("#members-list").textContent.includes("Camille Dupont") &&
+      app.$("#members-list").textContent.includes("camille.dupont@example.com"),
+    "la liste affiche les informations actualisées",
+  );
+
+  assertTrue(!app.$("#member-dialog").open, "la boîte devrait se fermer");
+});
+
+test("a refused member update due to an existing email is shown in French", async () => {
+  const app = await mountApp(
+    {
+      "GET /members": [camille],
+      "PUT /members/m1": [
+        409,
+        {
+          error: true,
+          reason: "A member with this email already exists",
+        },
+      ],
+    },
+    { hash: "#members" },
+  );
+
+  await waitFor(() => app.$$("#members-list .row").length === 1);
+
+  // On ouvre le formulaire de modification.
+  app.click("Modifier", app.$("#members-list"));
+
+  const form = app.$("#member-form");
+
+  // On vérifie que les informations initiales sont présentes.
+  assertEqual(form.elements.name.value, "Camille");
+  assertEqual(form.elements.email.value, "camille@example.com");
+
+  // On saisit une adresse déjà utilisée.
+  form.elements.email.value = "autre@example.com";
+  form.requestSubmit();
+
+  await waitFor(
+    () => !app.$("#member-dialog .form-error").hidden,
+    "le message d'erreur",
+  );
+
+  assertEqual(
+    app.$("#member-dialog .form-error").textContent,
+    "Un·e autre adhérent·e utilise déjà cette adresse e-mail.",
+  );
+
+  assertTrue(app.$("#member-dialog").open, "la boîte devrait rester ouverte");
+
+  // La liste ne doit pas avoir été modifiée.
+  assertIncludes(app.$("#members-list").textContent, "camille@example.com");
+});
+
 test("an email already in use is shown in French", async () => {
   const app = await mountApp(
     {

@@ -179,6 +179,69 @@ test("a refused update is shown in French and the form stays open", async () => 
   assertTrue(app.$("#game-dialog").open, "la boîte devrait rester ouverte");
 });
 
+test("deleting a game asks for confirmation, calls delete, and reloads the list", async () => {
+  let games = [catan];
+
+  const app = await mountApp({
+    "GET /games": () => [200, games],
+    "DELETE /games/g1": () => {
+      games = [];
+      return [204];
+    },
+  });
+
+  app.win.confirm = () => true;
+
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+
+  app.click("Supprimer", cardOf(app, "Catan"));
+
+  await waitFor(
+    () =>
+      app.calls.some(
+        (call) => call.method === "DELETE" && call.path === "/games/g1",
+      ),
+    "l'appel DELETE /games/g1",
+  );
+
+  await waitFor(
+    () => app.$$("#games-list .card").length === 0,
+    "la liste est actualisée",
+  );
+
+  assertIncludes(app.$("#toasts").textContent, "supprimé");
+});
+
+test("a refused deletion due to loans is shown in French via a toast", async () => {
+  const app = await mountApp({
+    "GET /games": [catan],
+    "DELETE /games/g1": [
+      409,
+      {
+        error: true,
+        reason: "A game with loans cannot be deleted",
+      },
+    ],
+  });
+
+  app.win.confirm = () => true;
+
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+
+  app.click("Supprimer", cardOf(app, "Catan"));
+
+  await waitFor(
+    () => app.$("#toasts").textContent.includes("emprunts"),
+    "le message d'erreur traduit",
+  );
+
+  assertEqual(
+    app.$$("#games-list .card").length,
+    1,
+    "le jeu ne doit pas être supprimé",
+  );
+});
+
 // --- Emprunts
 
 test("borrowing a game sends the game and the chosen member", async () => {

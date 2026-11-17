@@ -115,6 +115,7 @@ function gameCard(game) {
     );
   }
   actions.append(button("Modifier", () => openGameDialog(game)));
+  actions.append(button("Supprimer", () => deleteGame(game), "danger"));
   return el(
     "li",
     { class: "card" },
@@ -126,6 +127,22 @@ function gameCard(game) {
     ),
     actions,
   );
+}
+
+async function deleteGame(game) {
+  const confirmed = window.confirm(
+    `Voulez-vous vraiment supprimer « ${game.title} » ?`,
+  );
+
+  if (!confirmed) return;
+
+  await run(async () => {
+    await api.deleteGame(game.id);
+
+    toast(`« ${game.title} » a été supprimé.`);
+
+    await loadGames();
+  });
 }
 
 const gameDialog = $("#game-dialog");

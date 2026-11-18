@@ -29,9 +29,29 @@
             Ajouter un jeu
           </button>
         </div>
+
+        <form id="games-filters" class="filters" novalidate>
+          <label>Titre <input type="search" name="q" /></label>
+          <label
+            >Joueur·ses <input type="number" name="players" min="1" step="1"
+          /></label>
+          <label
+            >Durée max (min)
+            <input type="number" name="maxDuration" min="1" step="1"
+          /></label>
+          <div class="actions">
+            <button type="submit" class="primary">Rechercher</button>
+            <button type="button" id="filters-reset">Réinitialiser</button>
+          </div>
+        </form>
+
         <p id="games-empty" class="empty" hidden>
           La ludothèque ne contient aucun jeu pour le moment. Cliquez sur «
           Ajouter un jeu » pour créer le premier.
+        </p>
+        <p id="games-no-result" class="empty" hidden>
+          Aucun jeu ne correspond à votre recherche. Modifiez les critères ou
+          cliquez sur « Réinitialiser ».
         </p>
         <ul id="games-list" class="cards"></ul>
       </section>

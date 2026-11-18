@@ -99,9 +99,51 @@ window.addEventListener("hashchange", refresh);
 
 // --- Jeux ------------------------------------------------------------------
 
+// Critères de recherche appliqués : ils sont conservés quand la liste est
+// rechargée (après un ajout, un emprunt, un retour...).
+let gameFilters = {};
+
+const filtersForm = $("#games-filters");
+
+// Un entier strictement positif, sinon null : l'API refuserait le reste.
+function positiveInteger(value) {
+  const text = String(value ?? "").trim();
+  const number = Number(text);
+  return /^\d+$/.test(text) && Number.isSafeInteger(number) && number > 0
+    ? number
+    : null;
+}
+
+// Les champs vides ou invalides sont simplement ignorés.
+function readGameFilters(data) {
+  const filters = {};
+  const q = String(data.get("q") ?? "").trim();
+  if (q) filters.q = q;
+  const players = positiveInteger(data.get("players"));
+  if (players !== null) filters.players = players;
+  const maxDuration = positiveInteger(data.get("maxDuration"));
+  if (maxDuration !== null) filters.maxDuration = maxDuration;
+  return filters;
+}
+
+filtersForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  gameFilters = readGameFilters(new FormData(filtersForm));
+  run(loadGames);
+});
+
+$("#filters-reset").addEventListener("click", () => {
+  filtersForm.reset();
+  gameFilters = {};
+  run(loadGames);
+});
+
 async function loadGames() {
-  const games = await api.listGames();
-  $("#games-empty").hidden = games.length > 0;
+  const games = await api.listGames(gameFilters);
+  const isSearch = Object.keys(gameFilters).length > 0;
+  // Ludothèque vide et recherche sans résultat : deux messages différents.
+  $("#games-empty").hidden = !(games.length === 0 && !isSearch);
+  $("#games-no-result").hidden = !(games.length === 0 && isSearch);
   $("#games-list").replaceChildren(...games.map(gameCard));
 }
 

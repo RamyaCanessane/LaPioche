@@ -242,6 +242,42 @@ test("a refused deletion due to loans is shown in French via a toast", async () 
   );
 });
 
+const gamesCalls = (app) =>
+  app.calls.filter((call) => call.method === "GET" && call.path === "/games");
+
+test("the search form sends the combined filters to the API", async () => {
+  const app = await mountApp({ "GET /games": [catan, dixit] });
+  await waitFor(() => app.$$("#games-list .card").length === 2);
+  const form = app.$("#games-filters");
+  form.elements.q.value = "  cat ";
+  form.elements.players.value = "4";
+  form.elements.maxDuration.value = "60";
+  form.requestSubmit();
+  await waitFor(() => gamesCalls(app).length === 2, "la requête filtrée");
+  const params = new URLSearchParams(gamesCalls(app)[1].search);
+  assertEqual(params.get("q"), "cat");
+  assertEqual(params.get("players"), "4");
+  assertEqual(params.get("maxDuration"), "60");
+});
+
+test("a search with no result shows a message different from an empty library", async () => {
+  const app = await mountApp({
+    "GET /games?q=zzz": [],
+    "GET /games": [catan],
+  });
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+  const form = app.$("#games-filters");
+  form.elements.q.value = "zzz";
+  form.requestSubmit();
+  await waitFor(() => !app.$("#games-no-result").hidden, "le message");
+  assertIncludes(
+    app.$("#games-no-result").textContent,
+    "Aucun jeu ne correspond",
+  );
+  assertTrue(app.$("#games-empty").hidden, "ce n'est pas une ludothèque vide");
+  assertEqual(app.$$("#games-list .card").length, 0);
+});
+
 // --- Emprunts
 
 test("borrowing a game sends the game and the chosen member", async () => {

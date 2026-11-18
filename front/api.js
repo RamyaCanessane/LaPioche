@@ -117,7 +117,14 @@ async function request(method, path, body) {
 }
 
 export const api = {
-  listGames: () => request("GET", "/games"),
+  listGames: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.q) params.set("q", filters.q);
+    if (filters.players) params.set("players", filters.players);
+    if (filters.maxDuration) params.set("maxDuration", filters.maxDuration);
+    const query = params.toString();
+    return request("GET", query ? `/games?${query}` : "/games");
+  },
   createGame: (game) => request("POST", "/games", game),
   updateGame: (id, game) => request("PUT", `/games/${id}`, game),
   deleteGame: (id) => request("DELETE", `/games/${id}`),

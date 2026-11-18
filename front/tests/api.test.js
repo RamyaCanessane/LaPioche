@@ -153,6 +153,15 @@ test("listOverdueLoans calls GET /loans/overdue", async () => {
   assertEqual(result, []);
 });
 
+test("listGames sends the filters as query parameters", async () => {
+  const { fetch, calls } = fakeApi({ "GET /games": [] });
+  await withFakeFetch(fetch, () =>
+    api.listGames({ q: "cat", players: 4, maxDuration: 60 }),
+  );
+  assertEqual(calls[0].path, "/games");
+  assertEqual(calls[0].search, "?q=cat&players=4&maxDuration=60");
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

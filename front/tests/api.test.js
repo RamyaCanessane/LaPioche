@@ -119,6 +119,14 @@ test("deleteMember sends a DELETE request to the member", async () => {
   assertEqual(`${calls[0].method} ${calls[0].path}`, "DELETE /members/m1");
 });
 
+test("returnLoan sends a POST to the loan's return route", async () => {
+  const { fetch, calls } = fakeApi({
+    "POST /loans/l1/return": [200, { id: "l1" }],
+  });
+  await withFakeFetch(fetch, () => api.returnLoan("l1"));
+  assertEqual(`${calls[0].method} ${calls[0].path}`, "POST /loans/l1/return");
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

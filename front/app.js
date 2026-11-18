@@ -113,6 +113,8 @@ function gameCard(game) {
     actions.append(
       button("Emprunter", () => openBorrowDialog(game), "primary"),
     );
+  } else {
+    actions.append(button("Rendre", () => returnGame(game), "primary"));
   }
   actions.append(button("Modifier", () => openGameDialog(game)));
   actions.append(button("Supprimer", () => deleteGame(game), "danger"));
@@ -202,6 +204,24 @@ async function openBorrowDialog(game) {
     );
     showFormError(borrowDialog, null);
     borrowDialog.showModal();
+  });
+}
+
+async function returnGame(game) {
+  await run(async () => {
+    const members = await api.listMembers();
+    const loansByMember = await Promise.all(
+      members.map((member) => api.listMemberLoans(member.id)),
+    );
+    const loan = loansByMember
+      .flat()
+      .find((l) => l.gameID === game.id && !l.returnedAt);
+    if (!loan) {
+      throw new Error("Aucun emprunt en cours n'a été trouvé pour ce jeu.");
+    }
+    await api.returnLoan(loan.id);
+    toast(`« ${game.title} » a été rendu.`);
+    await loadGames();
   });
 }
 

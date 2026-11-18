@@ -294,6 +294,80 @@ test("borrowing without any member explains that one must be added first", async
   );
 });
 
+test("a borrowed game offers Return instead of Borrow", async () => {
+  const app = await mountApp({ "GET /games": [dixit] });
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+  const labels = [...cardOf(app, "Dixit").querySelectorAll("button")].map(
+    (button) => button.textContent,
+  );
+  assertTrue(labels.includes("Rendre"), "Dixit devrait proposer Rendre");
+  assertTrue(
+    !labels.includes("Emprunter"),
+    "Dixit ne doit pas proposer Emprunter",
+  );
+});
+
+test("returning a game calls the return route and updates the screen", async () => {
+  let games = [dixit];
+  const loan = {
+    id: "l1",
+    gameID: "g2",
+    memberID: "m1",
+    borrowedAt: new Date().toISOString(),
+    dueAt: new Date().toISOString(),
+    returnedAt: null,
+  };
+  const app = await mountApp({
+    "GET /games": () => [200, games],
+    "GET /members": [camille],
+    "GET /members/m1/loans": [loan],
+    "POST /loans/l1/return": () => {
+      games = [{ ...dixit, isAvailable: true }];
+      return [200, { ...loan, returnedAt: new Date().toISOString() }];
+    },
+  });
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+  assertIncludes(cardOf(app, "Dixit").textContent, "Emprunté");
+
+  app.click("Rendre", cardOf(app, "Dixit"));
+
+  await waitFor(
+    () =>
+      app.calls.some(
+        (call) => call.method === "POST" && call.path === "/loans/l1/return",
+      ),
+    "l'appel POST /loans/l1/return",
+  );
+  await waitFor(
+    () => cardOf(app, "Dixit").textContent.includes("Disponible"),
+    "la carte passe à Disponible",
+  );
+  assertIncludes(app.$("#toasts").textContent, "rendu");
+});
+
+test("a failed return is shown in French", async () => {
+  const loan = { id: "l1", gameID: "g2", memberID: "m1", returnedAt: null };
+  const app = await mountApp({
+    "GET /games": [dixit],
+    "GET /members": [camille],
+    "GET /members/m1/loans": [loan],
+    "POST /loans/l1/return": [
+      409,
+      { error: true, reason: "Loan is already returned" },
+    ],
+  });
+  await waitFor(() => app.$$("#games-list .card").length === 1);
+
+  app.click("Rendre", cardOf(app, "Dixit"));
+
+  await waitFor(
+    () => app.$("#toasts").textContent.includes("déjà été rendu"),
+    "le message d'erreur traduit",
+  );
+  assertIncludes(app.$("#toasts").textContent, "Cet emprunt a déjà été rendu.");
+  assertIncludes(cardOf(app, "Dixit").textContent, "Emprunté");
+});
+
 // --- Adhérent·es
 
 test("members tab lists the members", async () => {

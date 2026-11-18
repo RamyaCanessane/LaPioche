@@ -146,6 +146,13 @@ test("listMemberLoans calls GET /members/:id/loans", async () => {
   assertEqual(result, loans);
 });
 
+test("listOverdueLoans calls GET /loans/overdue", async () => {
+  const { fetch, calls } = fakeApi({ "GET /loans/overdue": [] });
+  const result = await withFakeFetch(fetch, () => api.listOverdueLoans());
+  assertEqual(`${calls[0].method} ${calls[0].path}`, "GET /loans/overdue");
+  assertEqual(result, []);
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

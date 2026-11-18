@@ -368,6 +368,65 @@ test("a failed return is shown in French", async () => {
   assertIncludes(cardOf(app, "Dixit").textContent, "Emprunté");
 });
 
+test("an overdue loan is listed with title, member, due date and days late", async () => {
+  const app = await mountApp(
+    {
+      "GET /loans/overdue": [
+        {
+          id: "l3",
+          gameID: "g2",
+          memberID: "m1",
+          borrowedAt: inDays(-30),
+          dueAt: inDays(-16),
+          returnedAt: null,
+        },
+      ],
+      "GET /games": [dixit],
+      "GET /members": [camille],
+    },
+    { hash: "#overdue" },
+  );
+  await waitFor(() => app.$$("#overdue-list .row").length === 1);
+  const row = app.$("#overdue-list .row").textContent;
+  assertIncludes(row, "Dixit");
+  assertIncludes(row, "Camille");
+  assertIncludes(row, "À rendre avant le");
+  assertIncludes(row, "En retard : 16 jours");
+  assertTrue(app.$("#overdue-empty").hidden, "pas de message de liste vide");
+  assertEqual(app.$("#overdue-count").textContent, "1");
+});
+
+test("with no overdue loan, a message says so", async () => {
+  const app = await mountApp(
+    { "GET /loans/overdue": [], "GET /games": [], "GET /members": [] },
+    { hash: "#overdue" },
+  );
+  await waitFor(() => !app.$("#overdue-empty").hidden);
+  assertIncludes(
+    app.$("#overdue-empty").textContent,
+    "Aucun emprunt en retard",
+  );
+  assertEqual(app.$$("#overdue-list .row").length, 0);
+  assertTrue(app.$("#overdue-count").hidden, "l'indicateur est masqué à 0");
+});
+
+test("the overdue count is visible without opening the view", async () => {
+  const late = (id) => ({
+    id,
+    gameID: "g2",
+    memberID: "m1",
+    borrowedAt: inDays(-30),
+    dueAt: inDays(-16),
+    returnedAt: null,
+  });
+  const app = await mountApp({
+    "GET /games": [dixit],
+    "GET /loans/overdue": [late("l3"), late("l4")],
+  });
+  await waitFor(() => !app.$("#overdue-count").hidden, "l'indicateur");
+  assertEqual(app.$("#overdue-count").textContent, "2");
+});
+
 // --- Adhérent·es
 
 test("members tab lists the members", async () => {

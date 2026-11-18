@@ -73,7 +73,7 @@ function bindSubmit(dialog, form, handler) {
 
 // --- Onglets ---------------------------------------------------------------
 
-const tabs = ["games", "members"];
+const tabs = ["games", "members", "overdue"];
 
 function currentTab() {
   const name = location.hash.slice(1);
@@ -86,7 +86,13 @@ async function refresh() {
     $(`#${name}`).hidden = name !== tab;
     $(`[data-tab="${name}"]`).toggleAttribute("aria-current", name === tab);
   }
-  await run(tab === "games" ? loadGames : loadMembers);
+  const loaders = {
+    games: loadGames,
+    members: loadMembers,
+    overdue: loadOverdue,
+  };
+  if (tab !== "overdue") updateOverdueCount();
+  await run(loaders[tab]);
 }
 
 window.addEventListener("hashchange", refresh);
@@ -222,6 +228,7 @@ async function returnGame(game) {
     await api.returnLoan(loan.id);
     toast(`« ${game.title} » a été rendu.`);
     await loadGames();
+    updateOverdueCount();
   });
 }
 
@@ -347,6 +354,67 @@ async function openLoansDialog(member) {
     );
     loansDialog.showModal();
   });
+}
+
+// --- Emprunts en retard ----------------------------------------------------
+
+function setOverdueCount(count) {
+  const badge = $("#overdue-count");
+  badge.textContent = count;
+  badge.hidden = count === 0;
+}
+
+// L'indicateur est secondaire : s'il échoue, on n'affiche pas d'erreur.
+async function updateOverdueCount() {
+  try {
+    setOverdueCount((await api.listOverdueLoans()).length);
+  } catch {
+    // on garde la valeur précédente
+  }
+}
+
+function daysLate(loan) {
+  const days = Math.floor((Date.now() - new Date(loan.dueAt)) / 86_400_000);
+  return Math.max(1, days);
+}
+
+function overdueRow(loan, titles, names) {
+  const days = daysLate(loan);
+  return el(
+    "li",
+    { class: "row late" },
+    el(
+      "div",
+      { class: "row-main" },
+      el("p", {}, el("strong", {}, titles.get(loan.gameID) ?? "Jeu inconnu")),
+      el(
+        "p",
+        { class: "meta" },
+        `Emprunté par ${names.get(loan.memberID) ?? "adhérent·e inconnu·e"} · À rendre avant le ${formatDate(loan.dueAt)}`,
+      ),
+    ),
+    // Le libellé texte signale le retard : la couleur ne suffit pas.
+    el(
+      "span",
+      { class: "badge late" },
+      `En retard : ${days} jour${days > 1 ? "s" : ""}`,
+    ),
+  );
+}
+
+async function loadOverdue() {
+  const [loans, games, members] = await Promise.all([
+    api.listOverdueLoans(),
+    api.listGames(),
+    api.listMembers(),
+  ]);
+  const titles = new Map(games.map((game) => [game.id, game.title]));
+  const names = new Map(members.map((member) => [member.id, member.name]));
+  setOverdueCount(loans.length);
+  $("#overdue-empty").hidden = loans.length > 0;
+  $("#overdue-list").replaceChildren(
+    ...loans.map((loan) => overdueRow(loan, titles, names)),
+  );
 }
 
 refresh();

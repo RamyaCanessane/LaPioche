@@ -221,10 +221,12 @@ async function loadMembers() {
 }
 
 function memberRow(member) {
-  const actions = el("div", { class: "actions" });
-
-  actions.append(button("Modifier", () => openMemberDialog(member)));
-
+  const actions = el(
+    "div",
+    { class: "actions" },
+    button("Modifier", () => openMemberDialog(member)),
+    button("Supprimer", () => deleteMember(member), "danger"),
+  );
   return el(
     "li",
     { class: "row" },
@@ -246,16 +248,13 @@ let editedMember = null;
 function openMemberDialog(member = null) {
   editedMember = member;
   memberForm.reset();
-
-  $("#member-dialog h2").textContent = member
+  $("#member-dialog-title").textContent = member
     ? `Modifier « ${member.name} »`
     : "Ajouter un·e adhérent·e";
-
   if (member) {
     memberForm.elements.name.value = member.name;
     memberForm.elements.email.value = member.email;
   }
-
   showFormError(memberDialog, null);
   memberDialog.showModal();
 }
@@ -267,10 +266,19 @@ bindSubmit(memberDialog, memberForm, (data) => {
     name: data.get("name").trim(),
     email: data.get("email").trim(),
   };
-
   return editedMember
     ? api.updateMember(editedMember.id, member)
     : api.createMember(member);
 });
+
+async function deleteMember(member) {
+  if (confirm(`Voulez-vous vraiment supprimer « ${member.name} » ?`)) {
+    await run(async () => {
+      await api.deleteMember(member.id);
+      toast(`« ${member.name} » a été supprimé·e.`);
+      await loadMembers();
+    });
+  }
+}
 
 refresh();

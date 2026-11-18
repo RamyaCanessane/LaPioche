@@ -474,3 +474,68 @@ test("an email already in use is shown in French", async () => {
     "utilise déjà cette adresse e-mail",
   );
 });
+
+test("deleting a member asks for confirmation, calls delete, and reloads the list", async () => {
+  let members = [camille];
+  const originalConfirm = window.confirm;
+  window.confirm = () => true;
+
+  const app = await mountApp(
+    {
+      "GET /members": () => [200, members],
+      "DELETE /members/m1": () => {
+        members = [];
+        return [204];
+      },
+    },
+    { hash: "#members" },
+  );
+
+  await waitFor(() => app.$$("#members-list .row").length === 1);
+  app.click("Supprimer", app.$("#members-list"));
+
+  await waitFor(
+    () =>
+      app.calls.some(
+        (call) => call.method === "DELETE" && call.path === "/members/m1",
+      ),
+    "l'appel DELETE /members/m1",
+  );
+
+  await waitFor(
+    () => app.$$("#members-list .row").length === 0,
+    "la liste est actualisée",
+  );
+  assertIncludes(app.$("#toasts").textContent, "supprimé·e");
+
+  window.confirm = originalConfirm;
+});
+
+test("a refused deletion due to loans is shown in French via a toast", async () => {
+  const originalConfirm = window.confirm;
+  window.confirm = () => true;
+
+  const app = await mountApp(
+    {
+      "GET /members": [camille],
+      "DELETE /members/m1": [
+        409,
+        {
+          error: true,
+          reason: "A member with loans cannot be deleted",
+        },
+      ],
+    },
+    { hash: "#members" },
+  );
+
+  await waitFor(() => app.$$("#members-list .row").length === 1);
+  app.click("Supprimer", app.$("#members-list"));
+
+  await waitFor(
+    () => app.$("#toasts").textContent.includes("emprunts"),
+    "le message d'erreur traduit",
+  );
+
+  window.confirm = originalConfirm;
+});

@@ -109,6 +109,16 @@ test("updateMember sends a JSON PUT to the member", async () => {
   assertEqual(updated.id, "m1");
 });
 
+test("deleteMember sends a DELETE request to the member", async () => {
+  const { fetch, calls } = fakeApi({
+    "DELETE /members/m1": [204],
+  });
+
+  await withFakeFetch(fetch, () => api.deleteMember("m1"));
+
+  assertEqual(`${calls[0].method} ${calls[0].path}`, "DELETE /members/m1");
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

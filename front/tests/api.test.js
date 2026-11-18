@@ -162,6 +162,14 @@ test("listGames sends the filters as query parameters", async () => {
   assertEqual(calls[0].search, "?q=cat&players=4&maxDuration=60");
 });
 
+test("listGames sends available=true when asked", async () => {
+  const { fetch, calls } = fakeApi({ "GET /games": [] });
+  await withFakeFetch(fetch, () =>
+    api.listGames({ q: "cat", available: true }),
+  );
+  assertEqual(calls[0].search, "?q=cat&available=true");
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).

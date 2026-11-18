@@ -122,6 +122,7 @@ export const api = {
     if (filters.q) params.set("q", filters.q);
     if (filters.players) params.set("players", filters.players);
     if (filters.maxDuration) params.set("maxDuration", filters.maxDuration);
+    if (filters.available) params.set("available", "true");
     const query = params.toString();
     return request("GET", query ? `/games?${query}` : "/games");
   },

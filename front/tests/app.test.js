@@ -278,6 +278,23 @@ test("a search with no result shows a message different from an empty library", 
   assertEqual(app.$$("#games-list .card").length, 0);
 });
 
+test("the available checkbox sends available=true and combines with another filter", async () => {
+  const app = await mountApp({ "GET /games": [catan, dixit] });
+  await waitFor(() => app.$$("#games-list .card").length === 2);
+  const form = app.$("#games-filters");
+
+  form.elements.q.value = "cat";
+  form.elements.available.checked = true;
+  form.elements.available.dispatchEvent(
+    new app.win.Event("change", { bubbles: true }),
+  );
+
+  await waitFor(() => gamesCalls(app).length === 2, "la requête filtrée");
+  const params = new URLSearchParams(gamesCalls(app)[1].search);
+  assertEqual(params.get("available"), "true");
+  assertEqual(params.get("q"), "cat");
+});
+
 // --- Emprunts
 
 test("borrowing a game sends the game and the chosen member", async () => {

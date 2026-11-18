@@ -123,11 +123,17 @@ function readGameFilters(data) {
   if (players !== null) filters.players = players;
   const maxDuration = positiveInteger(data.get("maxDuration"));
   if (maxDuration !== null) filters.maxDuration = maxDuration;
+  if (data.get("available")) filters.available = true;
   return filters;
 }
 
 filtersForm.addEventListener("submit", (event) => {
   event.preventDefault();
+  gameFilters = readGameFilters(new FormData(filtersForm));
+  run(loadGames);
+});
+
+filtersForm.elements.available.addEventListener("change", () => {
   gameFilters = readGameFilters(new FormData(filtersForm));
   run(loadGames);
 });

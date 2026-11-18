@@ -244,6 +244,7 @@ function memberRow(member) {
   const actions = el(
     "div",
     { class: "actions" },
+    button("Emprunts", () => openLoansDialog(member), "info"),
     button("Modifier", () => openMemberDialog(member)),
     button("Supprimer", () => deleteMember(member), "danger"),
   );
@@ -299,6 +300,53 @@ async function deleteMember(member) {
       await loadMembers();
     });
   }
+}
+
+const loansDialog = $("#loans-dialog");
+
+// Rendu si returnedAt est renseigné, en retard si la date prévue est passée.
+function loanStatus(loan) {
+  if (loan.returnedAt) return { label: "Rendu", className: "ok" };
+  if (new Date(loan.dueAt) < new Date()) {
+    return { label: "En retard", className: "late" };
+  }
+  return { label: "En cours", className: "busy" };
+}
+
+function loanRow(loan, titles) {
+  const status = loanStatus(loan);
+  return el(
+    "li",
+    { class: "row" },
+    el(
+      "div",
+      { class: "row-main" },
+      el("p", {}, el("strong", {}, titles.get(loan.gameID) ?? "Jeu inconnu")),
+      el(
+        "p",
+        { class: "meta" },
+        `Emprunté le ${formatDate(loan.borrowedAt)} · À rendre avant le ${formatDate(loan.dueAt)}`,
+      ),
+    ),
+    el("span", { class: `badge ${status.className}` }, status.label),
+  );
+}
+
+async function openLoansDialog(member) {
+  await run(async () => {
+    // L'API ne renvoie que l'identifiant du jeu : on récupère les titres.
+    const [loans, games] = await Promise.all([
+      api.listMemberLoans(member.id),
+      api.listGames(),
+    ]);
+    const titles = new Map(games.map((game) => [game.id, game.title]));
+    $("#loans-dialog-title").textContent = `Emprunts de ${member.name}`;
+    $("#loans-empty").hidden = loans.length > 0;
+    $("#loans-list").replaceChildren(
+      ...loans.map((loan) => loanRow(loan, titles)),
+    );
+    loansDialog.showModal();
+  });
 }
 
 refresh();

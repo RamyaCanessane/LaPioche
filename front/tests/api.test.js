@@ -127,6 +127,25 @@ test("returnLoan sends a POST to the loan's return route", async () => {
   assertEqual(`${calls[0].method} ${calls[0].path}`, "POST /loans/l1/return");
 });
 
+test("listMemberLoans calls GET /members/:id/loans", async () => {
+  const loans = [
+    {
+      id: "l1",
+      gameID: "g1",
+      memberID: "m1",
+      borrowedAt: "2026-11-01T10:00:00Z",
+      dueAt: "2026-11-15T10:00:00Z",
+      returnedAt: null,
+    },
+  ];
+  const { fetch, calls } = fakeApi({ "GET /members/m1/loans": loans });
+
+  const result = await withFakeFetch(fetch, () => api.listMemberLoans("m1"));
+
+  assertEqual(`${calls[0].method} ${calls[0].path}`, "GET /members/m1/loans");
+  assertEqual(result, loans);
+});
+
 // --- erreurs
 
 // Attend qu'une promesse échoue et renvoie l'erreur (échoue si elle réussit).
